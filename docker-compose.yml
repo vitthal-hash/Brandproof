@@ -1,0 +1,48 @@
+# One command: docker compose up --build   ->   http://localhost:3000
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: brandproof
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-brandproof}
+      POSTGRES_DB: brandproof
+    volumes:
+      - brandproof_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brandproof -d brandproof"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  backend:
+    build: ./backend
+    environment:
+      BP_SECRET: ${BP_SECRET:-change-me-before-real-use}
+      BP_SEED: ${BP_SEED:-1}                      # 1 = load the fictional Finora demo brand and demo users
+      BP_DEMO_PASSWORD: ${BP_DEMO_PASSWORD:-demo1234}
+      BP_CORS_ORIGINS: http://localhost:3000
+      BP_LLM_PROVIDER: ${BP_LLM_PROVIDER:-auto}   # auto | anthropic | gemini | offline
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      BP_GEMINI_MODEL: ${BP_GEMINI_MODEL:-gemini-3.1-flash-lite}
+      BP_ANTHROPIC_MODEL: ${BP_ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://brandproof:${POSTGRES_PASSWORD:-brandproof}@db:5432/brandproof}
+      BP_STORAGE_DIR: /app/data/files
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - brandproof_data:/app/data
+    ports:
+      - "8000:8000"
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+volumes:
+  brandproof_data:
+  brandproof_pg:

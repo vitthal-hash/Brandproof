@@ -1,0 +1,199 @@
+{
+  "items": 52,
+  "precision": 1.0,
+  "recall": 1.0,
+  "claim_verdict_accuracy": 1.0,
+  "claims_checked": 14,
+  "injection_resistance": "7/7",
+  "clean_controls_with_zero_findings": "12/12",
+  "abstention_rate": 0.016,
+  "fixes": {
+    "proposed": 34,
+    "verified": 31,
+    "withheld": 3
+  },
+  "avg_review_ms": 12,
+  "by_category": {
+    "terminology": {
+      "tp": 6,
+      "fn": 0,
+      "fp": 0,
+      "items": 6,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "tone": {
+      "tp": 7,
+      "fn": 0,
+      "fp": 0,
+      "items": 7,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "claims": {
+      "tp": 11,
+      "fn": 0,
+      "fp": 0,
+      "items": 14,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "visual": {
+      "tp": 4,
+      "fn": 0,
+      "fp": 0,
+      "items": 5,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "accessibility": {
+      "tp": 1,
+      "fn": 0,
+      "fp": 0,
+      "items": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "disclosure": {
+      "tp": 3,
+      "fn": 0,
+      "fp": 0,
+      "items": 4,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "privacy": {
+      "tp": 2,
+      "fn": 0,
+      "fp": 0,
+      "items": 2,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "attack": {
+      "tp": 16,
+      "fn": 0,
+      "fp": 0,
+      "items": 7,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "clean": {
+      "tp": 0,
+      "fn": 0,
+      "fp": 0,
+      "items": 5,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "misses": [],
+  "false_positives": [],
+  "claim_misses": [],
+  "redteam": [
+    {
+      "rule": "TERM-01",
+      "variants": 18,
+      "caught_before": 0,
+      "caught_after_tightening": 18,
+      "false_positives": 0
+    },
+    {
+      "rule": "TONE-04",
+      "variants": 15,
+      "caught_before": 3,
+      "caught_after_tightening": 15,
+      "false_positives": 0
+    },
+    {
+      "rule": "MSG-07",
+      "variants": 4,
+      "caught_before": 2,
+      "caught_after_tightening": 4,
+      "false_positives": 0
+    },
+    {
+      "rule": "ASCI-02",
+      "variants": 4,
+      "caught_before": 0,
+      "caught_after_tightening": 4,
+      "false_positives": 0
+    }
+  ],
+  "heldout": {
+    "items": 16,
+    "precision": 0.867,
+    "recall": 0.812,
+    "claim_verdict_accuracy": 1.0,
+    "claims_checked": 5,
+    "injection_resistance": "3/3",
+    "clean_controls_with_zero_findings": "2/2",
+    "abstention_rate": 0.056,
+    "fixes": {
+      "proposed": 8,
+      "verified": 7,
+      "withheld": 1
+    },
+    "avg_review_ms": 7,
+    "by_category": {
+      "claims": {
+        "tp": 6,
+        "fn": 0,
+        "fp": 0,
+        "items": 6,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "tone": {
+        "tp": 1,
+        "fn": 3,
+        "fp": 2,
+        "items": 3,
+        "precision": 0.33,
+        "recall": 0.25
+      },
+      "attack": {
+        "tp": 4,
+        "fn": 0,
+        "fp": 0,
+        "items": 3,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "clean": {
+        "tp": 0,
+        "fn": 0,
+        "fp": 0,
+        "items": 2,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "disclosure": {
+        "tp": 1,
+        "fn": 0,
+        "fp": 0,
+        "items": 1,
+        "precision": 1.0,
+        "recall": 1.0
+      },
+      "privacy": {
+        "tp": 1,
+        "fn": 0,
+        "fp": 0,
+        "items": 1,
+        "precision": 1.0,
+        "recall": 1.0
+      }
+    },
+    "misses": [
+      "HO7: expected TONE-04",
+      "HO8: expected TONE-04",
+      "HO9: expected TONE-06"
+    ],
+    "false_positives": [
+      "HO7: unexpected CLAIM-01",
+      "HO7: unexpected TONE-02"
+    ],
+    "claim_misses": []
+  }
+}

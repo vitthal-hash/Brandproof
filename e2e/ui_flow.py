@@ -1,0 +1,87 @@
+"""Drive the real UI in Chromium. Needs: pip install playwright && playwright install chromium.
+Start the API (port 8000, fresh DB, BP_SEED=1) and the web app (port 3000) first. Usage: python e2e/ui_flow.py"""
+import asyncio, os
+from playwright.async_api import async_playwright
+
+BASE = os.getenv("BP_WEB", "http://localhost:3000")
+SHOTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screens")
+os.makedirs(SHOTS, exist_ok=True)
+errors = []
+
+async def login(page, email):
+    await page.goto(BASE + "/login")
+    await page.fill("#email", email)
+    await page.fill("#pw", "demo1234")
+    await page.click("button[type=submit]")
+    await page.wait_for_url(BASE + "/")
+
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch()
+        ctx = await b.new_context(viewport={"width": 1280, "height": 900})
+        page = await ctx.new_page()
+        page.on("pageerror", lambda e: errors.append("pageerror: " + str(e)))
+        page.on("console", lambda m: errors.append("console: " + m.text) if m.type == "error" else None)
+        await page.goto(BASE + "/login")
+        await page.screenshot(path=SHOTS + "/01_login.png")
+        await login(page, "creator@finora.example")
+        await page.wait_for_selector("text=Dashboard")
+        await page.screenshot(path=SHOTS + "/02_dashboard.png", full_page=True)
+        await page.click("text=Savings launch post")
+        await page.wait_for_selector("article")
+        await page.wait_for_timeout(500)
+        await page.screenshot(path=SHOTS + "/03_asset.png", full_page=True)
+        # accept a verified fix
+        before = await page.locator("article").count()
+        await page.locator("button:has-text('Accept fix')").first.click()
+        await page.wait_for_selector("text=Version 2")
+        await page.screenshot(path=SHOTS + "/04_after_accept.png", full_page=True)
+        await page.click("[role=tab]:has-text('Claim Ledger')")
+        await page.screenshot(path=SHOTS + "/05_claims.png", full_page=True)
+        await page.click("[role=tab]:has-text('History')")
+        await page.click("text=Show changes from")
+        await page.screenshot(path=SHOTS + "/06_history.png", full_page=True)
+        await page.goto(BASE + "/assets/1/proof")
+        await page.wait_for_selector("text=PROOF PACK")
+        await page.screenshot(path=SHOTS + "/07_proof.png", full_page=True)
+        # attack asset as manager
+        await page.evaluate("localStorage.clear()")
+        await login(page, "manager@finora.example")
+        await page.goto(BASE + "/assets/4")
+        await page.wait_for_selector("article")
+        await page.click("[role=tab]:has-text('Trust Layer')")
+        await page.screenshot(path=SHOTS + "/08_trust.png", full_page=True)
+        await page.goto(BASE + "/audit")
+        await page.click("text=Verify chain")
+        await page.wait_for_selector("text=Chain intact")
+        await page.screenshot(path=SHOTS + "/09_audit.png")
+        # owner: rulebook + red team
+        await page.evaluate("localStorage.clear()")
+        await login(page, "owner@finora.example")
+        await page.goto(BASE + "/rulebook")
+        await page.wait_for_selector("text=Rulebook health")
+        await page.locator("button:has-text('Run red-team')").first.click()
+        await page.wait_for_selector("text=LOOPHOLE", timeout=15000)
+        await page.screenshot(path=SHOTS + "/10_redteam.png", full_page=True)
+        await page.click("button:has-text('Approve tighter rule')")
+        await page.wait_for_selector("text=APPROVED")
+        await page.screenshot(path=SHOTS + "/11_redteam_approved.png", full_page=True)
+        await page.goto(BASE + "/governance")
+        await page.wait_for_selector("text=Brand Constitution")
+        await page.screenshot(path=SHOTS + "/12_governance.png")
+        await page.click("[role=tab]:has-text('Fact Vault')")
+        await page.screenshot(path=SHOTS + "/13_facts.png")
+        await page.goto(BASE + "/disclosure")
+        await page.wait_for_selector("text=Privacy controls")
+        await page.screenshot(path=SHOTS + "/14_disclosure.png", full_page=True)
+        # mobile
+        m = await b.new_context(viewport={"width": 390, "height": 800})
+        mp = await m.new_page()
+        await login(mp, "creator@finora.example")
+        await mp.goto(BASE + "/assets/2")
+        await mp.wait_for_selector("text=Referral post")
+        await mp.screenshot(path=SHOTS + "/15_mobile.png", full_page=True)
+        await b.close()
+    print("ERRORS:", errors)
+
+asyncio.run(main())
