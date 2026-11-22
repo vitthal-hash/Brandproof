@@ -60,13 +60,25 @@ export const STEPS: Step[] = [
   { ch: "Rules", title: "Audit log", body: "A hash-chained, tamper-evident record of every action.", route: "/disclosure", text: "Audit log", adv: "click", to: "/audit", act: "Click Audit log." },
   { ch: "Rules", title: "Verify the chain", body: "This recomputes every hash and tells you if anything was altered.", route: "/audit", text: "Verify chain", adv: "click", act: "Click Verify chain." },
   { ch: "Proof", title: "Stale approvals", body: "When a fact is edited or expires, every approved asset that is now wrong shows up here. Nothing is changed automatically.", route: "/audit", text: "Stale approvals", adv: "click", to: "/stale", act: "Click Stale approvals." },
-  { ch: "Proof", title: "Alerts and the scan button", body: "Each alert names the asset and how many claims no longer match. A manager, reviewer or owner can run a scan, or dismiss an alert with a written reason.", route: "/stale", sel: "main" },
+  { ch: "Proof", title: "Stale approvals", body: "When a fact is edited or expires, every approved asset that is now wrong shows up here. Nothing is changed automatically. A manager, reviewer or owner can run a scan with the button below the heading.", route: "/stale", sel: '[data-tour="stale-intro"]' },
+  { ch: "Proof", title: "The alerts list", body: "Each alert names the asset and how many claims no longer match, and you can open the asset to add a new version or dismiss the alert with a written reason. If this list is empty, every approved asset still matches today's facts.", route: "/stale", sel: '[data-tour="stale-list"]' },
   { ch: "Proof", title: "Trust Layer tests", body: "25 attack files and 8 clean files are generated and scored live.", route: "/stale", text: "Trust Layer tests", adv: "click", to: "/trust", act: "Click Trust Layer tests." },
-  { ch: "Proof", title: "Known gaps are shown on purpose", body: "Two attacks are not caught, and the page says which and why. A scoreboard that hides its misses proves nothing.", route: "/trust", sel: "main" },
+  { ch: "Proof", title: "The scoreboard", body: "BrandProof generates attack files and clean files on the spot and scores its own Trust Layer. The first two boxes show how many attacks were caught and how many clean files were correctly left alone.", route: "/trust", sel: '[data-tour="trust-score"]', wait: "Running the attack files. This takes a few seconds..." },
+  { ch: "Proof", title: "Known gaps are shown on purpose", body: "Two attacks are not caught, and this box says which and why. A scoreboard that hides its misses proves nothing.", route: "/trust", sel: '[aria-label="Known gaps"], [data-tour="trust-table"]', wait: "Running the attack files. This takes a few seconds..." },
   { ch: "Proof", title: "Evaluation", body: "Precision and recall on the seeded set, the held-out probe and the blind set, with confidence intervals.", route: "/trust", text: "Evaluation", adv: "click", to: "/evaluation", act: "Click Evaluation." },
-  { ch: "Proof", title: "Misses and false positives are listed", body: "The blind set was written after the engine froze. Its misses stay visible instead of being tuned away.", route: "/evaluation", sel: "main" },
-  { ch: "Done", title: "That is everything", body: "You can sign in as any role and explore freely. The Guided tour button (bottom right) reopens this tour whenever you like.", route: "/" },
+  { ch: "Proof", title: "Scores with error bars", body: "Precision and recall for the hardest set first (the blind set, written after the engine was frozen). The intervals show how far a small sample can be trusted: 5 out of 5 is not proof of 100%.", route: "/evaluation", sel: '[data-tour="eval-stats"]', wait: "Loading the results..." },
+  { ch: "Proof", title: "Misses and false positives are listed", body: "Every rule that was missed and every wrongly flagged item is named here instead of being tuned away. The held-out probe and the seeded set are listed below it on the same page.", route: "/evaluation", sel: '[data-tour="eval-misses"]', wait: "Loading the results..." },
+  { ch: "Done", title: "That is everything", body: "You can sign in as any role and explore freely. The Guided tour button (bottom right) reopens this tour whenever you like." },
 ];
+/** Where the tour should begin for someone who is already signed in (so an owner is not sent to buttons they do not have). */
+export function tourStartIndex(role?: string): number {
+  const find = (t: string) => Math.max(0, STEPS.findIndex((x) => x.title === t));
+  if (!role) return 0;
+  if (role === "owner") return find("Guidelines and facts");
+  if (role === "reviewer") return find("Find the high-risk asset");
+  if (role === "manager") return find("The review queue");
+  return find("This is your workspace");
+}
 const CHAPTERS = ["Start", "Submit", "Review", "Approve", "Rules", "Proof"];
 const KEY = "bp_tour";
 const PAGE_NAME: Record<string, string> = {
@@ -87,8 +99,12 @@ function matches(route: string | undefined, path: string): boolean {
 function findTarget(s: Step): HTMLElement | null {
   if (s.sel) { try { for (const el of Array.from(document.querySelectorAll<HTMLElement>(s.sel))) if (el.offsetParent !== null || getComputedStyle(el).position === "fixed") return el; } catch {} }
   if (s.text) {
-    const els = Array.from(document.querySelectorAll<HTMLElement>("button,a,[role=tab],h1,h2,label"));
-    return els.find((e) => e.offsetParent !== null && (e.textContent || "").trim().startsWith(s.text!)) || null;
+    // Prefer tabs, then the page content, then the rest of the page (the sidebar). Otherwise the sidebar link
+    // "Trust Layer tests" would be picked instead of the "Trust Layer" tab on an asset page.
+    const vis = (e: HTMLElement) => e.offsetParent !== null && (e.textContent || "").trim().startsWith(s.text!);
+    const q = (root: ParentNode, sel: string) => Array.from(root.querySelectorAll<HTMLElement>(sel)).find(vis) || null;
+    const all = "button,a,[role=tab],h1,h2,label";
+    return q(document, "[role=tab]") || (document.querySelector("main") ? q(document.querySelector("main")!, all) : null) || q(document, all);
   }
   return null;
 }
@@ -107,13 +123,19 @@ export default function Tour() {
   const [menu, setMenu] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [missing, setMissing] = useState(false);
+  const [settled, setSettled] = useState(false);
+  const [showPaused, setShowPaused] = useState(false);
+  const [cardH, setCardH] = useState(270);
+  const cardRef = useRef<HTMLDivElement>(null);
   const scrolled = useRef(-1);
+  const lastRect = useRef("");
+  const misses = useRef(0);
   const started = useRef(false);
   const step = STEPS[i];
   const onPage = matches(step.route, path);
 
   const save = (n: number, a: boolean) => { try { sessionStorage.setItem(KEY, JSON.stringify({ i: n, on: a })); } catch {} };
-  const go = useCallback((n: number) => { const k = Math.max(0, Math.min(STEPS.length - 1, n)); setI(k); setOn(true); setMenu(false); setRect(null); setMissing(false); scrolled.current = -1; save(k, true); }, []);
+  const go = useCallback((n: number) => { const k = Math.max(0, Math.min(STEPS.length - 1, n)); setI(k); setOn(true); setMenu(false); setRect(null); setMissing(false); setSettled(false); scrolled.current = -1; lastRect.current = ""; save(k, true); }, []);
   const stop = () => { setOn(false); setMenu(false); save(i, false); };
 
   useEffect(() => {  // Escape ends the tour
@@ -141,22 +163,45 @@ export default function Tour() {
 
   useEffect(() => {  // on the right page: find the target, scroll to it and keep the spotlight on it
     if (!on || !onPage) { setRect(null); return; }
-    const tick = () => {
+    lastRect.current = ""; misses.current = 0;
+    setSettled(!(step.sel || step.text));          // steps that point at nothing (welcome, finish) show at once
+    const apply = () => {
       const el = findTarget(step);
-      if (!el) { setRect(null); return; }
+      if (!el) {                                   // page still loading, or the element re-rendered for a moment:
+        if (++misses.current >= 8) { lastRect.current = ""; setRect(null); }   // let go of the spotlight only after ~2 s
+        return;
+      }
+      misses.current = 0;
       if (scrolled.current !== i) { scrolled.current = i; const r0 = el.getBoundingClientRect(); const vh = window.innerHeight; if (r0.top < 80 || r0.bottom > vh - 240) window.scrollBy({ top: r0.top - (window.innerWidth < 640 ? 90 : vh * 0.28), behavior: "smooth" }); }
-      setRect(el.getBoundingClientRect()); setMissing(false);
+      const r = el.getBoundingClientRect();
+      const key = [r.left, r.top, r.width, r.height].map(Math.round).join(",");
+      if (key !== lastRect.current) { lastRect.current = key; setRect(r); }   // only re-render when the target really moved
+      setMissing(false);
     };
-    tick(); const t = setInterval(tick, 250);
-    const miss = setTimeout(() => setMissing(true), 4500);
+    apply(); const t = setInterval(apply, 250);
+    let raf = 0; const follow = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(apply); };  // keep the spotlight glued to the target while scrolling
+    window.addEventListener("scroll", follow, true); window.addEventListener("resize", follow);
+    const settle = setTimeout(() => setSettled(true), 1500);
+    const miss = setTimeout(() => setMissing(true), step.wait ? 9000 : 4500);
     const click = (e: MouseEvent) => {
       if (step.adv !== "click" || step.to) return;   // clicks that open another page advance when that page opens (effect above)
       const el = findTarget(step);
       if (el && el.contains(e.target as Node)) setTimeout(() => go(i + 1), 350);
     };
     document.addEventListener("click", click, true);
-    return () => { clearInterval(t); clearTimeout(miss); document.removeEventListener("click", click, true); };
+    return () => { clearInterval(t); clearTimeout(settle); clearTimeout(miss); cancelAnimationFrame(raf); window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", follow); document.removeEventListener("click", click, true); };
   }, [on, i, onPage, step, go]);
+
+  useEffect(() => {  // measure the real card height so it is never placed partly off-screen
+    const h = cardRef.current?.offsetHeight;
+    if (h && Math.abs(h - cardH) > 2) setCardH(h);
+  });
+
+  useEffect(() => {  // show "Tour paused" only if the person is still on another page after a moment (the tour often catches up by itself)
+    if (!(on && !onPage)) { setShowPaused(false); return; }
+    const t = setTimeout(() => setShowPaused(true), 700);
+    return () => clearTimeout(t);
+  }, [on, onPage, i, path]);
 
   const fill = () => {
     setVal(document.querySelector("#title"), SAMPLE.title); setVal(document.querySelector("#intent"), SAMPLE.intent); setVal(document.querySelector("#text"), SAMPLE.text);
@@ -172,11 +217,12 @@ export default function Tour() {
   const btn = "rounded-lg px-3 py-1.5 text-sm font-semibold";
   const fab = (
     <div className="no-print fixed bottom-4 right-4 z-[70] flex flex-col items-end">
-      {on && !onPage && (  // PAUSED: nothing dims the page; the person is free to click around
+      {on && !onPage && showPaused && (  // PAUSED: nothing dims the page; the person is free to click around
         <div role="status" className="mb-2 w-72 rounded-2xl border border-slate-200 bg-surface p-3 text-sm shadow-xl">
           <p className="font-semibold text-ink">Tour paused</p>
           <p className="mt-0.5 text-slate-700">It carries on by itself when you open {PAGE_NAME[step.route || "/"] || "the next page"}.</p>
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            {step.route && step.route !== "/assets/" && step.route !== "/proof" && <button onClick={() => router.push(step.route!)} className={`${btn} bg-navy text-white`}>Take me there</button>}
             <button onClick={skipToHere} className={`${btn} bg-brandbg text-brand hover:bg-teal-100`}>Continue from this page</button>
             <button onClick={stop} className={`${btn} text-slate-600 hover:bg-slate-100`}>End</button>
           </div>
@@ -192,6 +238,17 @@ export default function Tour() {
       </button>
     </div>);
   if (!on || !onPage) return fab;
+  // Target not on screen yet (page or data still loading): never show a card in the middle that later jumps next to the target.
+  // Show nothing for a moment, then a small corner note, and only give up with the centred card after a longer wait.
+  if (!rect && (step.sel || step.text) && !missing) {
+    return (<>
+      {settled && <div role="status" className="no-print fixed bottom-20 right-4 z-[70] w-72 rounded-2xl border border-slate-200 bg-surface p-3 text-sm shadow-xl">
+        <p className="font-semibold text-ink">{step.title}</p>
+        <p className="mt-0.5 text-slate-700">{step.wait || "Getting this page ready..."}</p>
+      </div>}
+      {fab}
+    </>);
+  }
 
   const center = !rect;
   const vw = typeof window !== "undefined" ? window.innerWidth : 1200, vh = typeof window !== "undefined" ? window.innerHeight : 800;
@@ -199,15 +256,25 @@ export default function Tour() {
   let pos: React.CSSProperties = { left: "50%", top: "50%", transform: "translate(-50%,-50%)" };
   if (!center && rect) {
     if (vw < 640) pos = { left: 12, right: 12, bottom: 76, width: "auto" };
-    else { const below = rect.bottom + 260 < vh; pos = { left: Math.max(12, Math.min(vw - cardW - 12, rect.left)), top: below ? rect.bottom + 14 : Math.max(12, rect.top - 14 - 250) }; }
+    else {
+      const left = Math.max(12, Math.min(vw - cardW - 12, rect.left));
+      if (rect.bottom + 14 + cardH < vh - 12) pos = { left, top: rect.bottom + 14 };                      // room below the target
+      else if (rect.top - cardH > 12) pos = { left, top: rect.top - 14 - cardH };                // room above it
+      else if (rect.right + cardW + 24 < vw) pos = { left: rect.right + 14, top: Math.max(12, Math.min(rect.top, vh - cardH - 12)) };  // room to its right
+      else if (rect.left - cardW - 24 > 0) pos = { left: rect.left - cardW - 14, top: Math.max(12, Math.min(rect.top, vh - cardH - 12)) };  // room to its left (sign-in page)
+      else pos = { left: Math.max(12, vw - cardW - 12), bottom: 76 };                           // target fills the screen: dock the card low, out of the way
+    }
   }
+  const ring = rect ? { top: Math.max(rect.top - 6, 4), left: Math.max(rect.left - 6, 4) } : null;   // never draw the highlight off-screen
+  const ringH = rect && ring ? Math.min(rect.bottom + 6, vh - 4) - ring.top : 0;
+  const ringW = rect && ring ? Math.min(rect.right + 6, vw - 4) - ring.left : 0;
   const last = i === STEPS.length - 1;
   const act = step.act || (step.adv === "click" ? "Click the highlighted item to continue." : "");
   return (
     <>
-      {rect && <div aria-hidden className="no-print pointer-events-none fixed z-[60] rounded-xl ring-4 ring-teal-300 transition-all duration-200" style={{ left: rect.left - 6, top: rect.top - 6, width: rect.width + 12, height: rect.height + 12, boxShadow: "0 0 0 9999px rgba(11,27,58,.62)" }} />}
+      {rect && <div aria-hidden className="no-print pointer-events-none fixed z-[60] rounded-xl ring-4 ring-teal-300 transition-all duration-200" style={{ left: ring!.left, top: ring!.top, width: ringW, height: ringH, boxShadow: "0 0 0 9999px rgba(11,27,58,.62)" }} />}
       {center && <div aria-hidden className="no-print pointer-events-none fixed inset-0 z-[60] bg-navy/60" />}
-      <div role="dialog" aria-live="polite" aria-label={step.title} className="no-print fixed z-[65] rounded-2xl bg-surface p-5 shadow-2xl" style={{ width: vw < 640 ? undefined : cardW, ...pos }}>
+      <div ref={cardRef} role="dialog" aria-live="polite" aria-label={step.title} className="no-print fixed z-[65] rounded-2xl bg-surface p-5 shadow-2xl transition-[top,left] duration-200" style={{ width: vw < 640 ? undefined : cardW, ...pos }}>
         <div className="mb-1 flex items-center justify-between text-xs font-semibold text-brand"><span>{step.ch}: step {i + 1} of {STEPS.length}</span><button onClick={stop} aria-label="End the guided tour" className="rounded-md border border-slate-300 px-2 py-0.5 text-slate-700 hover:bg-slate-100 hover:text-ink">End tour</button></div>
         <div className="mb-2 h-1 w-full overflow-hidden rounded bg-slate-200" role="progressbar" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={i + 1} aria-label="Tour progress"><div className="h-full bg-brand" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} /></div>
         <h2 className="font-display text-lg font-extrabold">{step.title}</h2>

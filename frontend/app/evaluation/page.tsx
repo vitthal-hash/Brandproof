@@ -26,13 +26,13 @@ function SetCard({ title, blurb, d }: { title: string; blurb: string; d: any }) 
   return (
     <section className="space-y-3" aria-label={title}>
       <div><h2 className="text-xl font-extrabold">{title}</h2><p className="max-w-3xl text-sm text-slate-800">{blurb}</p></div>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-4" data-tour="eval-stats">
         <Stat label="Items" value={String(d.items)} />
         <Stat label="Precision" value={pct(d.precision)} interval={d.precision_ci} />
         <Stat label="Recall" value={pct(d.recall)} interval={d.recall_ci} />
         <Stat label="Attacks caught" value={d.injection_resistance} interval={d.attack_ci} hint={`Clean controls left alone: ${d.clean_controls_with_zero_findings}`} />
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3" data-tour="eval-misses">
         {lists.map(([name, rows, tone]) => (
           <div key={name} className="card">
             <h3 className="font-bold">{name} <Chip tone={rows.length ? tone : "green"}>{rows.length}</Chip></h3>

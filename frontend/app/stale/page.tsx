@@ -28,6 +28,7 @@ export default function Stale() {
     <Shell>
       <div className="mx-auto max-w-5xl space-y-5">
         <ScheduleCard />
+        <div data-tour="stale-intro" className="space-y-5">
         <header>
           <h1 className="text-3xl font-extrabold">Stale approvals</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-800">
@@ -35,6 +36,8 @@ export default function Stale() {
           </p>
         </header>
         <div className="no-print"><button className="btn btn-ghost" disabled={busy} onClick={scan}>{busy ? "Scanning…" : "Scan approved assets now"}</button></div>
+        </div>
+        <div data-tour="stale-list">
         {!rows ? <p className="text-sm text-slate-600">Loading…</p> : rows.length === 0 ? <Empty>No open alerts. Every approved asset still matches the current facts.</Empty> : (
           <ul className="space-y-3">{rows.map((x) => (
             <li key={x.id} className="card">
@@ -53,6 +56,7 @@ export default function Stale() {
                 <Link className="btn btn-primary" href={`/assets/${x.asset_id}`}>Open asset to add a new version</Link>
               </div>
             </li>))}</ul>)}
+        </div>
         <Toast {...toast} onClose={() => setToast({ ...toast, msg: "" })} />
       </div>
     </Shell>

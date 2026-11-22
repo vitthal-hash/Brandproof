@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Shell, { useUser } from "@/components/Shell";
 import { Chip, Empty, PageHeader } from "@/components/ui";
 import { ROLE_LABEL } from "@/lib/api";
+import { tourStartIndex } from "@/components/Tour";
 
 type Faq = { q: string; a: string; cat: string };
 
@@ -123,7 +124,7 @@ export default function Help() {
   const q = query.trim().toLowerCase();
   const shown = FAQS.filter((f) => !q || (f.q + " " + f.a).toLowerCase().includes(q));
   const places = WHERE.filter((w) => !w.roles || w.roles.includes(role));
-  const tour = () => { try { sessionStorage.setItem("bp_tour", JSON.stringify({ i: user ? 2 : 0, on: true })); } catch {} window.location.href = user ? "/" : "/login"; };  // already signed in: skip the sign-in steps
+  const tour = () => { try { sessionStorage.setItem("bp_tour", JSON.stringify({ i: user ? tourStartIndex(user.role) : 0, on: true })); } catch {} window.location.href = user ? "/" : "/login"; };  // already signed in: skip the sign-in steps
 
   return (
     <Shell>

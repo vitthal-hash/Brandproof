@@ -22,7 +22,7 @@ export default function TrustSuite() {
         </header>
         {err && <p role="alert" className="font-semibold text-stamp">{err}</p>}
         {!r ? <p className="text-sm text-slate-600">Running the attack files…</p> : (<>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3" data-tour="trust-score">
             <div className="card"><div className="text-xs font-semibold uppercase text-slate-600">Attacks caught</div><div className="mt-1 text-3xl font-extrabold">{r.attacks.caught} / {r.attacks.total}</div></div>
             <div className="card"><div className="text-xs font-semibold uppercase text-slate-600">Clean controls left alone</div><div className="mt-1 text-3xl font-extrabold">{r.controls.clean} / {r.controls.total}</div></div>
             <div className="card"><div className="text-xs font-semibold uppercase text-slate-600">Local OCR</div><div className="mt-1 text-lg font-bold">{r.ocr ? "Available" : "Not installed"}</div><p className="mt-1 text-xs text-slate-700">Reads text inside images on this server. Nothing is sent out.</p></div>
@@ -32,7 +32,7 @@ export default function TrustSuite() {
             <section className="card" aria-label="Known gaps"><h2 className="font-bold">Known gaps, reported on purpose</h2>
               <ul className="mt-2 space-y-2 text-sm">{r.known_gaps.map((g: any) => <li key={g.id}><Chip tone={g.caught ? "green" : "amber"}>{g.id} {g.caught ? "caught" : "missed"}</Chip> <b>{g.name}.</b> {g.why}</li>)}</ul></section>)}
           <div className="no-print"><button className="btn btn-ghost" disabled={busy} onClick={run}>{busy ? "Running…" : "Run again"}</button></div>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-surface">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-surface" data-tour="trust-table">
             <table className="w-full"><caption className="sr-only">Attack and control results</caption>
               <thead><tr><th className="th">ID</th><th className="th">Case</th><th className="th">Channel</th><th className="th">Expected</th><th className="th">Result</th></tr></thead>
               <tbody>{r.results.map((x: any) => (
