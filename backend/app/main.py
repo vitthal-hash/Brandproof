@@ -72,3 +72,11 @@ app.add_middleware(CORSMiddleware, allow_origins=config.cors_origins(), allow_me
 limits.install(app)
 for r in (auth.router, assets.router, governance.router, redteam.router, system.router, verify.router, stale_router.router):
     app.include_router(r)
+
+# Health check endpoint for Render and UptimeRobot
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "service": "BrandProof API"
+    }
