@@ -179,11 +179,12 @@ def judge(claim: Claim, facts, today) -> Claim:
     # offers carry their own dates: an explicit past end date is a hard Outdated
     if claim.kind == "offer":
         past = [d for d in parse_dates(sent, today) if d < today]
-        fact = None
-        for f in facts:
-            if f.kind == "offer" and _kw_hits(f, sent):
-                fact = f
-                break
+        fact, fact_hits = None, 0
+        for f in facts:   # the offer fact that shares the MOST keywords with the sentence (not merely the first one that shares any)
+            if f.kind == "offer":
+                k = _kw_hits(f, sent)
+                if k > fact_hits:
+                    fact, fact_hits = f, k
         if fact:
             claim.fact_id = fact.id
             if fact.valid_from and fact.valid_from > today:

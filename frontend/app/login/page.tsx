@@ -20,17 +20,19 @@ export default function Login() {
   const [demoState, setDemoState] = useState<"loading" | "ready" | "failed">("loading");
   const [secs, setSecs] = useState(0);
   const [attempt, setAttempt] = useState(0);
+  const startId = demo.find((u) => u.role === "creator")?.id;   // the account judges should try first
 
   // Load demo accounts. The free server may be asleep, so retry every 5 s for about a minute.
   useEffect(() => {
-    let alive = true, tries = 0;
+    let alive = true;
+    const started = Date.now();
     setDemoState("loading"); setSecs(0);
     const load = () => {
       api("/demo-users")
         .then((d) => { if (alive) { setDemo(Array.isArray(d) ? d : []); setDemoState("ready"); } })
         .catch(() => {
           if (!alive) return;
-          if (++tries < 12) setTimeout(load, 5000);
+          if (Date.now() - started < 90000) setTimeout(load, 3000);   // keep trying for about 90 seconds in total
           else setDemoState("failed");
         });
     };
@@ -79,6 +81,13 @@ export default function Login() {
           <h2 className="text-3xl font-extrabold">Welcome back</h2>
           <p className="mt-1 text-sm text-slate-600">Pick a demo account to explore, or use your own email.</p>
 
+          {!(demoState === "ready" && demo.length === 0) && (
+            <div role="note" className="mt-5 rounded-xl border border-brand/30 bg-brandbg/40 p-3 text-sm">
+              <p className="font-semibold">Judges and first-time visitors: start with Aarav (Creator).</p>
+              <p className="mt-1 text-slate-700">Open <b>New submission</b>, click a ready-made sample, then press <b>Check my content</b>. Afterwards sign in as Meera or Karan to approve, and as Isha to see the rules and red-team. Isha is the owner and cannot submit content.</p>
+            </div>
+          )}
+
           {/* Wrapper keeps aria-label="Demo accounts" in every state so the guided tour can always find it. */}
           <div aria-label="Demo accounts" role="group" className="mt-5">
             {demoState === "loading" && (
@@ -107,7 +116,7 @@ export default function Login() {
                 {demo.map((u) => (
                   <li key={u.id}><button disabled={busy} className="group flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-surface p-3 text-left transition hover:-translate-y-px hover:border-brand hover:shadow-soft" onClick={() => submit(undefined, u.email, process.env.NEXT_PUBLIC_DEMO_PASSWORD || "demo1234")}>
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brandbg text-sm font-bold text-brand">{String(u.name)[0]}</span>
-                    <span className="flex-1"><span className="block text-sm font-semibold">{u.name}</span><span className="block text-xs text-slate-600">{ROLE_LABEL[u.role]}: {ROLE_HINT[u.role] || ""}</span></span>
+                    <span className="flex-1"><span className="flex items-center gap-2 text-sm font-semibold">{u.name}{u.id === startId && <span className="rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white">Start here</span>}</span><span className="block text-xs text-slate-600">{ROLE_LABEL[u.role]}: {ROLE_HINT[u.role] || ""}</span></span>
                     <span className="text-sm font-semibold text-brand opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">Enter</span>
                   </button></li>
                 ))}

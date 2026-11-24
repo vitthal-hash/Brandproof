@@ -34,7 +34,7 @@ All numbers are **offline mode** (no LLM key). Four of the nine blind-set misses
 
 Red-team on the seeded rulebook (hold-out generalisation, offline): TERM-01 0 -> 3 of 5, TONE-04 1 -> 3 of 4, MSG-07 3 -> 4 of 4, ASCI-02 0 -> 2 of 4. Five hold-out variants stay open as loopholes that need a human rewrite; the report lists them instead of claiming 100%.
 
-Engineering checks: **208 backend tests pass**, **42/42 live smoke checks pass**, TypeScript type-check clean.
+Engineering checks: **241 backend tests pass**, **42/42 live smoke checks pass**, TypeScript type-check clean.
 
 ## 4. Responsible AI
 

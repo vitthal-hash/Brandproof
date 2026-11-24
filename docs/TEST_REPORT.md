@@ -2,7 +2,7 @@
 
 Generated from the repository as submitted. Re-run every command below; do not trust this file over a fresh run.
 
-## Automated tests: 208 passed
+## Automated tests: 241 passed
 
 `cd backend && python -m pytest -q` (about 30 seconds)
 
@@ -35,7 +35,7 @@ With the API running (`BP_SEED=1`): `python scripts/smoke_test.py` -> `ALL CHECK
 
 ## Guided tour check
 
-`python scripts/check_tour.py` -> TOUR CHECK PASSED (44 steps, 6 chapters). It is a static check of routes, click targets and controls; no browser was available to click through it.
+`python scripts/check_tour.py` -> TOUR CHECK PASSED (47 steps, 6 chapters). It is a static check of routes, click targets and controls; no browser was available to click through it.
 
 ## Type check
 

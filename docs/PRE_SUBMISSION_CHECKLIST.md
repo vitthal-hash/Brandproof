@@ -6,7 +6,7 @@ Tick each box. Items marked **required** are promised somewhere in our documents
 
 - [ ] **required** `docker compose up --build` works from a clean clone (Docker was never run in the authoring environment).
 - [ ] **required** `cd frontend && npm ci && npm run build` succeeds (could not run in the authoring sandbox because it blocks Google Fonts; `tsc --noEmit` passes).
-- [ ] `cd backend && python -m pytest -q` -> 208 passed.
+- [ ] `cd backend && python -m pytest -q` -> 241 passed.
 - [ ] `python scripts/smoke_test.py` against the running app -> 42/42.
 - [ ] Click through the whole guided tour once as each role (Back, Next, End tour, Esc, Finish); `python scripts/check_tour.py` only checks it statically.
 - [ ] `python e2e/ui_flow.py` (Playwright) passes against the deployed or local app; it was last run in Round 2.

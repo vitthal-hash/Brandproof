@@ -66,7 +66,7 @@ This file freezes what we promised in Round 1 and what ships in Round 2. Anythin
 | Evaluation | Publish precision and recall, misses included | Seeded 52, held-out 16, blind 34, Wilson 95% intervals, `/evaluation` page | `docs/EVAL_REPORT.md`, `tests/test_eval_results.py` |
 | Added | Not in Round 1 | Stale-approval alerts, confidential mode, hardening (upload, rate and secret limits) | `tests/test_stale_cli_confidential.py`, `tests/test_hardening.py` |
 
-Final checks: 208 backend tests, 42/42 smoke checks, TypeScript type-check clean.
+Final checks: 241 backend tests, 42/42 smoke checks, TypeScript type-check clean.
 
 ### Round 3 deviations and changes to the section 2 table
 

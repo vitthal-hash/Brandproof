@@ -107,6 +107,12 @@ def create_asset(db: Session, user: User, title: str, intent: str, channel: str,
         raise HTTPException(422, "Title and a one-line intent are required")
     kind = _kind_for(mime, filename)
     limits.check_upload(data, filename, kind)
+    if kind == "text" and data and not (text or "").strip():
+        # A .txt or .md file was uploaded: its contents are the text to review (the form accepts these file types).
+        text = data.decode("utf-8", "replace")
+        if text.startswith("\ufeff"):   # one leading byte-order mark is normal for files saved on Windows; any other zero-width character is kept so the Trust Layer can flag it
+            text = text[1:]
+        data = None
     limits.check_text(text)
     if kind == "text" and not (text or "").strip():
         raise HTTPException(422, "Paste text or upload a file")

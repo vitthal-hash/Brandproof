@@ -92,6 +92,30 @@ def local_ocr(data: bytes, timeout: int = 25) -> str:
         return ""
 
 
+def local_ocr_faint(data: bytes, timeout: int = 20) -> str:
+    """Second OCR pass for FAINT text. Tesseract binarises a whole image at one threshold, so text that is only a few
+    shades away from its background vanishes as soon as the image also holds strong text. Here every pixel that
+    differs a little from the dominant background becomes black on white, which makes faint text as readable as
+    strong text. Returns '' if Tesseract is missing, the image is very large, or nothing can be read."""
+    exe = shutil.which("tesseract")
+    if not exe or not data:
+        return ""
+    try:
+        from PIL import Image, ImageStat
+        im = Image.open(io.BytesIO(data)).convert("L")
+        if im.width * im.height > 8_000_000:
+            return ""
+        bg = ImageStat.Stat(im).median[0]
+        boosted = im.point(lambda v: 0 if abs(v - bg) >= 6 else 255)
+        buf = io.BytesIO()
+        boosted.save(buf, "PNG")
+        p = subprocess.run([exe, "stdin", "stdout", "-l", _ocr_langs(exe), "--psm", "6"], input=buf.getvalue(),
+                           capture_output=True, timeout=timeout)
+        return p.stdout.decode("utf-8", "ignore").strip()
+    except Exception:
+        return ""
+
+
 def ocr_available() -> bool:
     return shutil.which("tesseract") is not None
 
@@ -398,6 +422,13 @@ def analyze_image(data: bytes, ocr_text: str = "") -> TrustResult:
     elif ocr_kind == "local":
         res.notes.append("text inside the image was read with local OCR; very small or low-contrast text may be missed")
     res.injections = scan_injection(ocr_text)
+    if ocr_kind == "local":
+        known = {i["phrase"].lower() for i in res.injections}
+        for inj in scan_injection(local_ocr_faint(data)):
+            if inj["phrase"].lower() not in known:   # readable only after boosting the contrast: someone made it faint on purpose
+                known.add(inj["phrase"].lower())
+                res.hidden.append({"text": inj["snippet"], "reason": "faint text in the image (very low contrast)", "page": 1})
+                res.injections.append({**inj, "hidden": True})
     return res
 
 

@@ -43,7 +43,7 @@ PII_PATTERNS = {
     "aadhaar": re.compile(r"(?<!\d)\d{4}\s?\d{4}\s?\d{4}(?!\d)"),
     "pan": re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b"),
     "card": re.compile(r"(?<!\d)(?:\d[ -]?){14,15}\d(?!\d)"),
-    "phone": re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)"),
+    "phone": re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}(?!\d)"),   # 9876543210, 98765 43210, +91 98765-43210
 }
 
 
