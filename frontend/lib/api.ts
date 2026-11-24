@@ -5,18 +5,38 @@ export function getToken(): string {
 }
 
 // Reading data is safe to repeat, so a GET that gets no answer for 25 s is abandoned and tried again (3 attempts).
-// Anything that saves or submits is sent once and never repeated, so nothing can be created twice.
+// Saves are only repeated when the hosting layer answered 502/503/504 (see below), never after a normal answer.
 const GET_TIMEOUT_MS = 25000;
 const GET_ATTEMPTS = 3;
+// The free server sleeps or restarts now and then and answers 502/503/504 while it wakes. Those answers come from the
+// hosting layer, so a save sent during that window did not complete. Wait a little and send it again (up to 4 tries).
+const WAKE_CODES = [502, 503, 504];
+const WAKE_WAITS_MS = [3000, 6000, 10000];
+async function sendWithWakeRetry(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    let res: Response | null = null;
+    try { res = await fetch(url, init); } catch { res = null; }
+    if (res && !WAKE_CODES.includes(res.status)) return res;
+    if (attempt >= WAKE_WAITS_MS.length) {
+      if (res) return res;
+      throw new Error("The server is not answering. Please wait a minute and try again.");
+    }
+    await new Promise((r) => setTimeout(r, WAKE_WAITS_MS[attempt]));
+  }
+}
+
 async function send(url: string, init: RequestInit, canRepeat: boolean): Promise<Response> {
-  if (!canRepeat) return fetch(url, init);
+  if (!canRepeat) return sendWithWakeRetry(url, init);
   for (let attempt = 1; ; attempt++) {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), GET_TIMEOUT_MS);
-    try { return await fetch(url, { ...init, signal: ctl.signal }); }
+    try {
+      const r = await fetch(url, { ...init, signal: ctl.signal });
+      if (!WAKE_CODES.includes(r.status) || attempt >= GET_ATTEMPTS) return r;   // 502/503/504: the server is waking, try again
+    }
     catch { if (attempt >= GET_ATTEMPTS) throw new Error("The server is not answering. Please check your connection and try again."); }
     finally { clearTimeout(timer); }
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, attempt * 2000));
   }
 }
 
