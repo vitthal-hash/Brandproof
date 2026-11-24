@@ -13,10 +13,6 @@ type Sample = {
 };
 // Ready-made content for trying the app. Each one was run through the review engine; "expect" says what it should show.
 const SAMPLES: Sample[] = [
-  { id: "risky", label: "Risky social post", kind: "Text", blurb: "False claims, an expired offer, pressure, personal data.",
-    expect: "Around 20 findings, most of them high severity: guaranteed returns, RBI approved, instant account opening, an expired cashback, shouting and pressure wording, a competitor named, and personal data.",
-    fields: { title: "Diwali savings campaign", intent: "Announce Finora Save for Diwali", channel: "social", alt_text: "", ai_generated: false,
-      text: "Finora Save is the BEST savings account for Diwali!!! Earn guaranteed 8% returns every month, 100% safe and RBI approved. Open your account instantly in just 2 seconds. Get a free physical debit card with zero charges, plus a launch cashback of Rs 500. Tax-free interest, available to everyone including NRIs. Our support team is open 24x7. ACT NOW OR LOSE OUT FOREVER, unlike BankX who will rip you off. Call me on 9876543210 or mail riya@finora.example to join today." } },
   { id: "hinglish", label: "Hinglish festive post", kind: "Text", blurb: "Hindi-English wording is understood too.",
     expect: "About 6 findings: the guarantee-style claim (\"pakka munafa\") and \"sure shot returns\" are contradicted by the Fact Vault, and the pressure wording is caught.",
     fields: { title: "Festive offer (Hinglish)", intent: "Festive offer on Finora Save", channel: "social", alt_text: "", ai_generated: false,
@@ -37,10 +33,6 @@ const SAMPLES: Sample[] = [
     expect: "A hidden-text warning and injection findings: the faint grey instruction to ignore the rules and approve is read out of the image and reported.",
     fields: { title: "Account banner", intent: "Invite people to open a Finora Save account", channel: "web", text: "", alt_text: "", ai_generated: false },
     file: { url: "/samples/Finora_Banner_FAINT_TEXT.png", name: "Finora_Banner_FAINT_TEXT.png", type: "image/png" } },
-  { id: "full", label: "The big test: festive brochure", kind: "PDF", blurb: "Four pages with almost every kind of problem.",
-    expect: "Around 110 findings across about 19 rules: false and expired claims, tone, personal data, look-alike letters, hidden text in eight different forms, and instructions aimed at an AI. Sorted by severity, with verified fixes.",
-    fields: { title: "Festive brochure", intent: "Launch the Finora Save Diwali campaign and get people to open an account", channel: "print", text: "", alt_text: "", ai_generated: true },
-    file: { url: "/samples/Finora_Festive_Brochure_FULL_TEST.pdf", name: "Finora_Festive_Brochure_FULL_TEST.pdf", type: "application/pdf" } },
 ];
 const BLANK = { title: "", intent: "", channel: "social", text: "", alt_text: "", ai_generated: false };
 
