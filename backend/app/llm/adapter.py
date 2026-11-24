@@ -5,6 +5,7 @@
 import base64
 import hashlib
 import json
+import os
 import re
 import time
 
@@ -15,6 +16,9 @@ from ..db import LlmCall
 from ..engine import trust
 
 _TRANSPORT = None  # tests inject httpx.MockTransport here
+_RETRY_CODES = (429, 500, 502, 503, 504)
+_TIMEOUT_S = 20   # was 40: a slow model must not hold the whole review for minutes
+_MAX_AI_FAILS = 2  # after this many failed AI calls in one review, skip the rest and use the offline rules
 
 
 def set_transport(t):
@@ -23,7 +27,7 @@ def set_transport(t):
 
 
 def _client() -> httpx.Client:
-    return httpx.Client(timeout=40, transport=_TRANSPORT)
+    return httpx.Client(timeout=_TIMEOUT_S, transport=_TRANSPORT)
 
 
 class AnthropicProvider:
@@ -61,9 +65,23 @@ class GeminiProvider:
         body = {"system_instruction": {"parts": [{"text": system}]},
                 "contents": [{"role": "user", "parts": parts}],
                 "generationConfig": {"maxOutputTokens": max(max_tokens * 3, 3000), "responseMimeType": "application/json"}}
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
-        with _client() as c:
-            r = c.post(url, json=body, headers={"x-goog-api-key": self.key})
+        # Google answers 503 "high demand" and 429 in short spikes. Retry ONCE after a short pause, then try an optional
+        # backup model (BP_GEMINI_FALLBACK_MODEL). A timeout is never retried: waiting again only makes the review slower,
+        # and the gateway falls back to the offline rules anyway.
+        fallback = os.environ.get("BP_GEMINI_FALLBACK_MODEL", "").strip()
+        models = [self.model] + ([fallback] if fallback and fallback != self.model else [])
+        r = None
+        for model in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+            for attempt in range(2):
+                with _client() as c:   # a timeout or connection error raises here and goes straight to the gateway
+                    r = c.post(url, json=body, headers={"x-goog-api-key": self.key})
+                if r.status_code not in _RETRY_CODES:
+                    break
+                if attempt == 0:
+                    time.sleep(2)
+            if r.status_code not in _RETRY_CODES:
+                break
         r.raise_for_status()
         cands = r.json().get("candidates") or [{}]
         return "".join(p.get("text", "") for p in (cands[0].get("content", {}).get("parts") or []))
@@ -110,6 +128,7 @@ class Gateway:
             self.provider = None
         self._cache: dict[str, dict | None] = {}
         self.calls = 0
+        self._fails = 0   # AI calls in this review that failed (timeout, 5xx, 429); see _MAX_AI_FAILS
 
     @property
     def enabled(self) -> bool:
@@ -129,9 +148,16 @@ class Gateway:
                                 input_chars=chars, redactions=reds, status=status, latency_ms=ms))
             self.db.flush()
 
+    def _note_failure(self, e: Exception) -> None:
+        code = getattr(getattr(e, "response", None), "status_code", None)
+        if code is None or code in _RETRY_CODES:
+            self._fails += 1
+
     def call_json(self, purpose: str, system: str, user: str, asset_id=None, max_tokens=1500, use_cache=True, **_) -> dict | None:
         if not self.enabled:
             return None
+        if self._fails >= _MAX_AI_FAILS:
+            return None   # the AI service is struggling: finish this review with the offline rules instead of waiting again
         user_r, _map, reds = trust.redact(user)
         key = hashlib.sha256((purpose + system + user_r).encode()).hexdigest()
         if use_cache and key in self._cache:
@@ -145,7 +171,9 @@ class Gateway:
             if not isinstance(data, dict):
                 data = None
             status = "ok" if data is not None else "bad_json"
+            self._fails = 0
         except Exception as e:  # network, quota, auth: never break a review
+            self._note_failure(e)
             code = getattr(getattr(e, "response", None), "status_code", "")
             data, status = None, f"error:{type(e).__name__}{' ' + str(code) if code else ''}"
             import logging; logging.getLogger("brandproof.llm").error("LLM call %s failed: %s %s", purpose, e, getattr(getattr(e, "response", None), "text", "")[:300])
@@ -155,7 +183,7 @@ class Gateway:
         return data
 
     def ocr_image(self, data: bytes, mime: str, asset_id=None) -> str:
-        if not self.enabled:
+        if not self.enabled or self._fails >= _MAX_AI_FAILS:
             return ""
         t0 = time.time()
         try:
@@ -166,6 +194,7 @@ class Gateway:
             obj = parse_json(raw) or {}
             text, status = str(obj.get("text", "")), "ok"
         except Exception as e:
+            self._note_failure(e)
             text, status = "", f"error:{type(e).__name__}"
         self.calls += 1
         self._log("image_ocr", asset_id, len(data), 0, status, int((time.time() - t0) * 1000))
